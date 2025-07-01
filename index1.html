@@ -36,27 +36,6 @@
     #gameContainer {
       display: none;
     }
-
-    #upgradeMenu {
-      display: none;
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .upgradeBtn {
-      margin: 10px;
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 10px;
-      border: none;
-      background-color: #444;
-      color: white;
-      cursor: pointer;
-    }
-
-    .upgradeBtn:hover {
-      background-color: #888;
-    }
   </style>
 </head>
 <body>
@@ -69,13 +48,6 @@
     <canvas id="gameCanvas" width="600" height="400"></canvas>
   </div>
 
-  <div id="upgradeMenu">
-    <h2>Escolhe 2 upgrades ai kkkkk</h2>
-    <button class="upgradeBtn" data-upgrade="speed">+ Velocidade</button>
-    <button class="upgradeBtn" data-upgrade="slowmo">Câmera Lenta (aperta p, 1 uso)</button>
-    <p id="upgradeInfo">Escolhe 2 upgrades ai kkkkk</p>
-  </div>
-
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -86,7 +58,7 @@
     const paddleWidth = 10, paddleHeight = 100;
     let playerY = canvas.height / 2 - paddleHeight / 2;
     let aiY = canvas.height / 2 - paddleHeight / 2;
-    let paddleSpeed = 8;
+    const paddleSpeed = 8;
 
     let ballX = canvas.width / 2;
     let ballY = canvas.height / 2;
@@ -96,18 +68,6 @@
 
     let playerScore = 0;
     let aiScore = 0;
-
-    let upgradesAvailable = false;
-    let playerUpgrades = {
-      speed: 0,
-      slowmo: 0,
-      usedSlowmo: false
-    };
-
-    let upgradesChosen = 0;
-    let animationFrameId;
-    let slowmoActive = false;
-    let slowmoTimeout = null;
 
     function startGame() {
       menu.style.display = 'none';
@@ -120,32 +80,6 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowUp') playerY -= paddleSpeed;
       else if (e.key === 'ArrowDown') playerY += paddleSpeed;
-      else if (e.key === 'p' && playerUpgrades.slowmo > 0 && !playerUpgrades.usedSlowmo) {
-        activateSlowMo();
-      }
-    });
-
-    document.querySelectorAll('.upgradeBtn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const upgrade = btn.getAttribute('data-upgrade');
-        if (upgradesChosen >= 2) return;
-
-        if (upgrade === 'speed') {
-          playerUpgrades.speed += 1;
-        } else if (upgrade === 'slowmo') {
-          playerUpgrades.slowmo += 1;
-          playerUpgrades.usedSlowmo = false;
-        }
-
-        upgradesChosen++;
-        document.getElementById('upgradeInfo').textContent = `Upgrade ${upgradesChosen}/2 selecionado`;
-
-        if (upgradesChosen === 2) {
-          applyUpgrades();
-          upgradesAvailable = false;
-          resumeGame();
-        }
-      });
     });
 
     function drawRect(x, y, w, h, color) {
@@ -170,54 +104,48 @@
     function resetBall() {
       ballX = canvas.width / 2;
       ballY = canvas.height / 2;
-      ballSpeedX = (ballSpeedX > 0 ? -5 : 5);
+      ballSpeedX *= -1;
       ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
     }
 
     function update() {
-      ballX += ballSpeedX;
-      ballY += ballSpeedY;
+  ballX += ballSpeedX;
+  ballY += ballSpeedY;
 
-      if (ballY <= 0 || ballY + ballSize >= canvas.height) {
-        ballSpeedY *= -1;
-      }
+  if (ballY <= 0 || ballY + ballSize >= canvas.height) {
+    ballSpeedY *= -1;
+  }
 
-      const aiCenter = aiY + paddleHeight / 2;
-      if (aiCenter < ballY) aiY += 3;
-      else aiY -= 3;
+  const aiCenter = aiY + paddleHeight / 2;
+  if (aiCenter < ballY) aiY += 3;
+  else aiY -= 3;
 
-      if (
-        ballX <= paddleWidth &&
-        ballY + ballSize >= playerY &&
-        ballY <= playerY + paddleHeight
-      ) {
-        ballSpeedX *= -1.05;
-        ballSpeedY *= 1.05;
-      }
+  if (
+    ballX <= paddleWidth &&
+    ballY + ballSize >= playerY &&
+    ballY <= playerY + paddleHeight
+  ) {
+    ballSpeedX *= -1.05;
+    ballSpeedY *= 1.05;
+  }
 
-      if (
-        ballX + ballSize >= canvas.width - paddleWidth &&
-        ballY + ballSize >= aiY &&
-        ballY <= aiY + paddleHeight
-      ) {
-        ballSpeedX *= -1.05;
-        ballSpeedY *= 1.05;
-      }
+  if (
+    ballX + ballSize >= canvas.width - paddleWidth &&
+    ballY + ballSize >= aiY &&
+    ballY <= aiY + paddleHeight
+  ) {
+    ballSpeedX *= -1.05;
+    ballSpeedY *= 1.05;
+  }
 
-      if (ballX < 0) {
-        aiScore++;
-        resetBall();
-      } else if (ballX > canvas.width) {
-        playerScore++;
-        resetBall();
-      }
-
-      const totalScore = playerScore + aiScore;
-      if (totalScore > 0 && totalScore % 10 === 0 && !upgradesAvailable) {
-        upgradesAvailable = true;
-        pauseGame();
-      }
-    }
+  if (ballX < 0) {
+    aiScore++;
+    resetBall();
+  } else if (ballX > canvas.width) {
+    playerScore++;
+    resetBall();
+  }
+}
 
     function render() {
       drawRect(0, 0, canvas.width, canvas.height, 'black');
@@ -231,36 +159,7 @@
     function gameLoop() {
       update();
       render();
-      animationFrameId = requestAnimationFrame(gameLoop);
-    }
-
-    function pauseGame() {
-      cancelAnimationFrame(animationFrameId);
-      document.getElementById('upgradeMenu').style.display = 'block';
-      upgradesChosen = 0;
-      document.getElementById('upgradeInfo').textContent = 'Escolha até 2 upgrades';
-    }
-
-    function resumeGame() {
-      document.getElementById('upgradeMenu').style.display = 'none';
-      animationFrameId = requestAnimationFrame(gameLoop);
-    }
-
-    function applyUpgrades() {
-      paddleSpeed = 8 + playerUpgrades.speed * 2;
-    }
-
-    function activateSlowMo() {
-      slowmoActive = true;
-      ballSpeedX /= 2;
-      ballSpeedY /= 2;
-      playerUpgrades.usedSlowmo = true;
-
-      slowmoTimeout = setTimeout(() => {
-        ballSpeedX *= 2;
-        ballSpeedY *= 2;
-        slowmoActive = false;
-      }, 5000);
+      requestAnimationFrame(gameLoop);
     }
   </script>
 </body>
