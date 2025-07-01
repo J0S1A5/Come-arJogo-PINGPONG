@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Ping Pong Clássico</title>
+  <title>Ping Pong</title>
   <style>
     canvas {
-      background: black;
+      background: rgb(0, 0, 0);
       display: block;
       margin: 0 auto;
-      border: 3px solid white;
+      border: 4px solid rgb(139, 0, 0);
     }
 
     #menu {
@@ -19,7 +19,7 @@
     }
 
     #menu button {
-      background-color: #555;
+      background-color: #2b2b2b;
       color: white;
       padding: 20px 40px;
       border: none;
@@ -36,16 +36,44 @@
     #gameContainer {
       display: none;
     }
+
+    #upgradeMenu {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .upgradeBtn {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
+      background-color: #444;
+      color: white;
+      cursor: pointer;
+    }
+
+    .upgradeBtn:hover {
+      background-color: #888;
+    }
   </style>
 </head>
 <body>
   <div id="menu">
-    <h1>Ping Pong Clássico</h1>
+    <h1>Ping Pong</h1>
     <button id="startButton">Começar Jogo</button>
   </div>
 
   <div id="gameContainer">
     <canvas id="gameCanvas" width="600" height="400"></canvas>
+  </div>
+
+  <div id="upgradeMenu">
+    <h2>Escolhe 2 upgrades ai kkkkk</h2>
+    <button class="upgradeBtn" data-upgrade="speed">+ Velocidade</button>
+    <button class="upgradeBtn" data-upgrade="slowmo">Câmera Lenta (aperta p, 1 uso)</button>
+    <p id="upgradeInfo">Escolhe 2 upgrades ai kkkkk</p>
   </div>
 
   <script>
@@ -58,7 +86,7 @@
     const paddleWidth = 10, paddleHeight = 100;
     let playerY = canvas.height / 2 - paddleHeight / 2;
     let aiY = canvas.height / 2 - paddleHeight / 2;
-    const paddleSpeed = 8;
+    let paddleSpeed = 8;
 
     let ballX = canvas.width / 2;
     let ballY = canvas.height / 2;
@@ -68,6 +96,18 @@
 
     let playerScore = 0;
     let aiScore = 0;
+
+    let upgradesAvailable = false;
+    let playerUpgrades = {
+      speed: 0,
+      slowmo: 0,
+      usedSlowmo: false
+    };
+
+    let upgradesChosen = 0;
+    let animationFrameId;
+    let slowmoActive = false;
+    let slowmoTimeout = null;
 
     function startGame() {
       menu.style.display = 'none';
@@ -80,6 +120,32 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowUp') playerY -= paddleSpeed;
       else if (e.key === 'ArrowDown') playerY += paddleSpeed;
+      else if (e.key === 'p' && playerUpgrades.slowmo > 0 && !playerUpgrades.usedSlowmo) {
+        activateSlowMo();
+      }
+    });
+
+    document.querySelectorAll('.upgradeBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const upgrade = btn.getAttribute('data-upgrade');
+        if (upgradesChosen >= 2) return;
+
+        if (upgrade === 'speed') {
+          playerUpgrades.speed += 1;
+        } else if (upgrade === 'slowmo') {
+          playerUpgrades.slowmo += 1;
+          playerUpgrades.usedSlowmo = false;
+        }
+
+        upgradesChosen++;
+        document.getElementById('upgradeInfo').textContent = `Upgrade ${upgradesChosen}/2 selecionado`;
+
+        if (upgradesChosen === 2) {
+          applyUpgrades();
+          upgradesAvailable = false;
+          resumeGame();
+        }
+      });
     });
 
     function drawRect(x, y, w, h, color) {
@@ -104,7 +170,7 @@
     function resetBall() {
       ballX = canvas.width / 2;
       ballY = canvas.height / 2;
-      ballSpeedX *= -1;
+      ballSpeedX = (ballSpeedX > 0 ? -5 : 5);
       ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
     }
 
@@ -125,7 +191,8 @@
         ballY + ballSize >= playerY &&
         ballY <= playerY + paddleHeight
       ) {
-        ballSpeedX *= -1;
+        ballSpeedX *= -1.05;
+        ballSpeedY *= 1.05;
       }
 
       if (
@@ -133,7 +200,8 @@
         ballY + ballSize >= aiY &&
         ballY <= aiY + paddleHeight
       ) {
-        ballSpeedX *= -1;
+        ballSpeedX *= -1.05;
+        ballSpeedY *= 1.05;
       }
 
       if (ballX < 0) {
@@ -142,6 +210,12 @@
       } else if (ballX > canvas.width) {
         playerScore++;
         resetBall();
+      }
+
+      const totalScore = playerScore + aiScore;
+      if (totalScore > 0 && totalScore % 10 === 0 && !upgradesAvailable) {
+        upgradesAvailable = true;
+        pauseGame();
       }
     }
 
@@ -157,9 +231,37 @@
     function gameLoop() {
       update();
       render();
-      requestAnimationFrame(gameLoop);
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function pauseGame() {
+      cancelAnimationFrame(animationFrameId);
+      document.getElementById('upgradeMenu').style.display = 'block';
+      upgradesChosen = 0;
+      document.getElementById('upgradeInfo').textContent = 'Escolha até 2 upgrades';
+    }
+
+    function resumeGame() {
+      document.getElementById('upgradeMenu').style.display = 'none';
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function applyUpgrades() {
+      paddleSpeed = 8 + playerUpgrades.speed * 2;
+    }
+
+    function activateSlowMo() {
+      slowmoActive = true;
+      ballSpeedX /= 2;
+      ballSpeedY /= 2;
+      playerUpgrades.usedSlowmo = true;
+
+      slowmoTimeout = setTimeout(() => {
+        ballSpeedX *= 2;
+        ballSpeedY *= 2;
+        slowmoActive = false;
+      }, 5000);
     }
   </script>
 </body>
-
-</html> 
+</html>
