@@ -97,6 +97,7 @@
     const startButton = document.getElementById('startButton');
     const menu = document.getElementById('menu');
     const gameContainer = document.getElementById('gameContainer'); 
+    
     const paddleWidth = 10, paddleHeight = 100;
     let playerY = canvas.height / 2 - paddleHeight / 2;
     let aiY = canvas.height / 2 - paddleHeight / 2;
@@ -114,8 +115,11 @@
 
     let gameRunning = false; 
     let ballMoving = false; 
-   
-    function drawRect(x, y, w, h, color) {
+    
+        const stars = [];
+    const NUM_STARS = 100; 
+    const MAX_STAR_SIZE = 2;
+       function drawRect(x, y, w, h, color) {
       ctx.fillStyle = color;
       ctx.fillRect(x, y, w, h);
     }
@@ -132,6 +136,27 @@
       ctx.fillStyle = color;
       ctx.font = font;
       ctx.fillText(text, x, y);
+    }
+
+    function initStars() {
+        stars.length = 0; 
+        for (let i = 0; i < NUM_STARS; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * MAX_STAR_SIZE + 0.5
+            });
+        }
+    }
+
+        function drawStars() {
+        ctx.fillStyle = 'white'; 
+        stars.forEach(star => {
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+        });
     }
 
    
@@ -158,7 +183,6 @@
         ballY += ballSpeedY;
       }
 
-      
       if (ballY <= 0 || ballY + ballSize >= canvas.height) {
         ballSpeedY *= -1;
       }
@@ -167,7 +191,7 @@
       if (aiCenter < ballY) aiY += 3;
       else aiY -= 3;
 
-      playerY = Math.max(0, Math.min(playerY, canvas.height - paddleHeight));
+         playerY = Math.max(0, Math.min(playerY, canvas.height - paddleHeight));
       aiY = Math.max(0, Math.min(aiY, canvas.height - paddleHeight));
 
       if (
@@ -178,7 +202,7 @@
         ballSpeedX *= -1.05; 
       }
 
-      if (
+         if (
         ballX + ballSize >= canvas.width - paddleWidth &&
         ballY + ballSize >= aiY &&
         ballY <= aiY + paddleHeight
@@ -186,7 +210,7 @@
         ballSpeedX *= -1.05; 
       }
 
-      if (ballX < 0) { 
+            if (ballX < 0) { 
         aiScore++;
         if (aiScore >= WINNING_SCORE) {
             endGame('computer');
@@ -209,6 +233,8 @@
 
     function render() {
       drawRect(0, 0, canvas.width, canvas.height, 'black');
+      drawStars(); 
+
       drawRect(0, playerY, paddleWidth, paddleHeight, 'white');
       drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, 'white');
       drawCircle(ballX, ballY, ballSize, 'white');
@@ -224,7 +250,7 @@
       }
     }
 
-    function startGame() {
+      function startGame() {
       menu.style.display = 'none'; 
       gameContainer.style.display = 'block';
 
@@ -233,6 +259,7 @@
 
       resetBall(); 
       playerY = canvas.height / 2 - paddleHeight / 2; 
+      aiY = canvas.height / 2 - paddleHeight / 2; 
 
       gameRunning = true; 
       ballMoving = false; 
@@ -243,12 +270,14 @@
 
     function endGame(winner) {
         gameRunning = false; 
+        ballMoving = false; 
         alert(winner === 'player' ? 'Você Venceu!' : 'O Computador Venceu!');
         
         gameContainer.style.display = 'none';
         menu.style.display = 'flex';
     }
 
+ 
     startButton.addEventListener('click', startGame);
 
     document.addEventListener('keydown', (e) => {
@@ -258,12 +287,11 @@
       else if (e.key === 'ArrowDown') playerY += paddleSpeed;
     });
 
-   
     document.addEventListener('DOMContentLoaded', () => {
       gameContainer.style.display = 'none'; 
       menu.style.display = 'flex'; 
+      initStars(); 
       render(); 
-    });
 
     render();
   </script>
