@@ -7,12 +7,12 @@
   <style>
     body {
       margin: 0;
-      overflow: hidden; /* Evita barras de rolagem */
+      overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh; /* Garante que o body ocupe a altura total da viewport */
-      background-color: #1a1a1a; /* Fundo escuro para a página */
+      min-height: 100vh;
+      background-color: #1a1a1a;
       font-family: 'Arial', sans-serif;
     }
 
@@ -20,20 +20,19 @@
       background: black;
       display: block;
       margin: 0 auto;
-      border: 3px solid white;
+      border: 3px solid red; /* A borda agora é vermelha */
     }
 
     #gameContainer {
-      /* Este contêiner envolverá o canvas e as telas de overlay (menu/game over) */
-      position: relative; /* Necessário para posicionar overlays com absolute */
-      display: none; /* Inicia oculto, será mostrado ao iniciar o jogo */
-      width: 600px; /* Largura padrão do canvas */
-      height: 400px; /* Altura padrão do canvas */
+      position: relative;
+      display: none;
+      width: 600px;
+      height: 400px;
       margin: 0 auto;
     }
 
-    #menu {
-      display: flex; /* Exibe o menu por padrão */
+    #menu, #levelSelectScreen, #newPhaseScreen, #gameOverScreen {
+      display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
@@ -41,24 +40,24 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background-color: rgba(0, 0, 0, 0.8); /* Fundo semi-transparente */
+      background-color: rgba(0, 0, 0, 0.8);
       padding: 30px;
       border-radius: 15px;
-      z-index: 10; /* Garante que fique acima do canvas */
+      z-index: 10;
       color: white;
       text-align: center;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-      width: 80%; /* Responsivo */
+      width: 80%;
       max-width: 400px;
     }
 
-    #menu h1 {
+    #menu h1, #levelSelectScreen h1, #newPhaseScreen h1, #gameOverScreen h1 {
       font-size: 2.5em;
       margin-bottom: 20px;
       color: white;
     }
 
-    #menu button {
+    #menu button, #levelSelectScreen button, #newPhaseScreen button, #gameOverScreen button {
       background-color: #2b2b2b;
       color: white;
       padding: 15px 30px;
@@ -67,16 +66,45 @@
       font-size: 1.2em;
       cursor: pointer;
       transition: background-color 0.2s, transform 0.1s;
+      margin-top: 15px;
       width: 80%;
       max-width: 250px;
     }
 
-    #menu button:hover {
+    #menu button:hover, #levelSelectScreen button:hover, #newPhaseScreen button:hover, #gameOverScreen button:hover {
       background-color: #777;
       transform: scale(1.05);
     }
-    #menu button:active {
+    #menu button:active, #levelSelectScreen button:active, #newPhaseScreen button:active, #gameOverScreen button:active {
       transform: scale(0.98);
+    }
+
+    /* Estilos específicos para os botões de nível */
+    #levelButtons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    #levelButtons button {
+        flex: 1 1 45%;
+        min-width: 100px;
+        padding: 10px 20px;
+        font-size: 1.1em;
+    }
+    #levelButtons button:disabled {
+        background-color: #555;
+        color: #bbb;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    #newPhaseScreen {
+        display: none;
+    }
+    #gameOverScreen {
+        display: none;
     }
 
   </style>
@@ -84,42 +112,90 @@
 <body>
   <div id="gameContainer">
     <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <div id="gameOverScreen">
+        <h1 id="gameOverMessage"></h1>
+        <button id="restartGameButton">Jogar Novamente</button>
+    </div>
+    <div id="newPhaseScreen">
+        <h1 id="newPhaseMessage">NOVA FASE LIBERADA!</h1>
+        <button id="continueGameButton">Continuar</button>
+    </div>
   </div>
 
   <div id="menu">
     <h1>Ping Pong Clássico</h1>
-    <button id="startButton">Começar Jogo</button>
+    <button id="playButton">Jogar</button>
+    <button id="levelsButton">Níveis</button>
+  </div>
+
+  <div id="levelSelectScreen">
+    <h1>Selecionar Nível</h1>
+    <div id="levelButtons">
+    </div>
+    <button id="backToMenuButton">Voltar ao Menu</button>
   </div>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const startButton = document.getElementById('startButton');
+
+    // Elementos da UI
     const menu = document.getElementById('menu');
-    const gameContainer = document.getElementById('gameContainer'); 
-    
+    const playButton = document.getElementById('playButton');
+    const levelsButton = document.getElementById('levelsButton');
+    const levelSelectScreen = document.getElementById('levelSelectScreen');
+    const levelButtonsContainer = document.getElementById('levelButtons');
+    const backToMenuButton = document.getElementById('backToMenuButton');
+    const gameContainer = document.getElementById('gameContainer');
+    const newPhaseScreen = document.getElementById('newPhaseScreen');
+    const newPhaseMessage = document.getElementById('newPhaseMessage');
+    const continueGameButton = document.getElementById('continueGameButton');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameOverMessage = document = document.getElementById('gameOverMessage');
+    const restartGameButton = document.getElementById('restartGameButton');
+
+    // Parâmetros do Jogo
     const paddleWidth = 10, paddleHeight = 100;
     let playerY = canvas.height / 2 - paddleHeight / 2;
     let aiY = canvas.height / 2 - paddleHeight / 2;
-    const paddleSpeed = 8;
+    const paddleSpeed = 10;
 
     let ballX = canvas.width / 2;
     let ballY = canvas.height / 2;
-    let ballSpeedX = 0; 
-    let ballSpeedY = 0; 
+    let currentBallSpeedX = 0;
+    let currentBallSpeedY = 0;
     const ballSize = 10;
 
     let playerScore = 0;
     let aiScore = 0;
-    const WINNING_SCORE = 5; 
+    // O WINNING_SCORE agora será para quando o computador pontua, ou se o jogador atinge essa pontuação SEM ter mais fases
+    const WINNING_SCORE = 15; 
 
-    let gameRunning = false; 
-    let ballMoving = false; 
-    
-        const stars = [];
-    const NUM_STARS = 100; 
+    let gameRunning = false;
+    let ballMoving = false;
+
+    // Variável para controlar quem serve a bola
+    let servingPlayer = 'player'; // 'player' ou 'ai'
+
+    // --- Variáveis de Nível ---
+    let currentLevel = 1;
+    let unlockedLevels = 1;
+    const MAX_LEVEL = 5; // Total de fases no jogo
+
+    // Velocidades base
+    const BASE_BALL_SPEED = 5;
+    const BASE_AI_SPEED = 3;
+    const SPEED_INCREASE_PERCENT = 0.06; // Aumento de 6% por nível (fase)
+
+    // --- Estrelas de fundo ---
+    const stars = [];
+    const NUM_STARS = 100;
     const MAX_STAR_SIZE = 2;
-       function drawRect(x, y, w, h, color) {
+    const MIN_OPACITY = 0.3;
+    const MAX_OPACITY = 1.0;
+
+    // --- Funções de Desenho ---
+    function drawRect(x, y, w, h, color) {
       ctx.fillStyle = color;
       ctx.fillRect(x, y, w, h);
     }
@@ -138,60 +214,95 @@
       ctx.fillText(text, x, y);
     }
 
+    // --- Lógica das Estrelas ---
     function initStars() {
-        stars.length = 0; 
+        stars.length = 0;
         for (let i = 0; i < NUM_STARS; i++) {
             stars.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                radius: Math.random() * MAX_STAR_SIZE + 0.5
+                radius: Math.random() * MAX_STAR_SIZE + 0.5,
+                opacity: Math.random() * (MAX_OPACITY - MIN_OPACITY) + MIN_OPACITY,
+                fading: Math.random() > 0.5,
+                fadeSpeed: Math.random() * 0.01 + 0.005
             });
         }
     }
 
-        function drawStars() {
-        ctx.fillStyle = 'white'; 
+    function drawStars() {
         stars.forEach(star => {
+            ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
             ctx.closePath();
             ctx.fill();
+
+            if (star.fading) {
+                star.opacity -= star.fadeSpeed;
+                if (star.opacity <= MIN_OPACITY) {
+                    star.fading = false;
+                }
+            } else {
+                star.opacity += star.fadeSpeed;
+                if (star.opacity >= MAX_OPACITY) {
+                    star.fading = true;
+                }
+            }
         });
     }
 
-   
+    // --- Lógica do Jogo ---
+
     function resetBall() {
-      ballX = canvas.width / 2;
-      ballY = canvas.height / 2;
-      ballSpeedX = 0;
-      ballSpeedY = 0; 
+      // Posição inicial da bola dependendo de quem vai servir
+      if (servingPlayer === 'player') {
+          ballX = paddleWidth + ballSize; // Perto da raquete do jogador
+          ballY = playerY + paddleHeight / 2; // Na altura do centro da raquete do jogador
+      } else { // servingPlayer === 'ai'
+          ballX = canvas.width - paddleWidth - ballSize; // Perto da raquete da IA
+          ballY = aiY + paddleHeight / 2; // Na altura do centro da raquete da IA
+      }
+      currentBallSpeedX = 0;
+      currentBallSpeedY = 0;
     }
 
-    
     function startBallMovement() {
         ballMoving = true;
-        ballSpeedX = 5 * (Math.random() > 0.5 ? 1 : -1); 
-        ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+        // Calcula a velocidade da bola baseada no nível atual
+        const speedMultiplier = 1 + (currentLevel - 1) * SPEED_INCREASE_PERCENT;
+        const calculatedBallSpeed = BASE_BALL_SPEED * speedMultiplier;
+
+        // A direção inicial da bola depende de quem está servindo
+        if (servingPlayer === 'player') {
+            currentBallSpeedX = calculatedBallSpeed; // Mover para a direita
+        } else { // servingPlayer === 'ai'
+            currentBallSpeedX = -calculatedBallSpeed; // Mover para a esquerda
+        }
+        currentBallSpeedY = (calculatedBallSpeed - 1) * (Math.random() > 0.5 ? 1 : -1);
     }
 
-
     function update() {
-      if (!gameRunning) return; 
+      if (!gameRunning) return;
 
-      if (ballMoving) { 
-        ballX += ballSpeedX;
-        ballY += ballSpeedY;
+      if (ballMoving) {
+        ballX += currentBallSpeedX;
+        ballY += currentBallSpeedY;
       }
 
       if (ballY <= 0 || ballY + ballSize >= canvas.height) {
-        ballSpeedY *= -1;
+        currentBallSpeedY *= -1;
       }
 
+      // IA simples (velocidade da IA baseada no nível)
       const aiCenter = aiY + paddleHeight / 2;
-      if (aiCenter < ballY) aiY += 3;
-      else aiY -= 3;
+      // Calcula a velocidade da IA baseada no nível atual
+      const speedMultiplier = 1 + (currentLevel - 1) * SPEED_INCREASE_PERCENT;
+      const calculatedAiSpeed = BASE_AI_SPEED * speedMultiplier;
 
-         playerY = Math.max(0, Math.min(playerY, canvas.height - paddleHeight));
+      if (aiCenter < ballY) aiY += calculatedAiSpeed;
+      else aiY -= calculatedAiSpeed;
+
+      playerY = Math.max(0, Math.min(playerY, canvas.height - paddleHeight));
       aiY = Math.max(0, Math.min(aiY, canvas.height - paddleHeight));
 
       if (
@@ -199,101 +310,185 @@
         ballY + ballSize >= playerY &&
         ballY <= playerY + paddleHeight
       ) {
-        ballSpeedX *= -1.05; 
+        currentBallSpeedX *= -1.05; // Pequeno aumento de velocidade ao rebater
       }
 
-         if (
+      if (
         ballX + ballSize >= canvas.width - paddleWidth &&
         ballY + ballSize >= aiY &&
         ballY <= aiY + paddleHeight
       ) {
-        ballSpeedX *= -1.05; 
+        currentBallSpeedX *= -1.05; // Pequeno aumento de velocidade ao rebater
       }
 
-            if (ballX < 0) { 
+      // Lógica de Pontuação e Fim de Rodada
+      if (ballX < 0) { // Computador pontua
         aiScore++;
+        servingPlayer = 'ai'; // IA serve na próxima rodada
         if (aiScore >= WINNING_SCORE) {
-            endGame('computer');
+            endGame('computer'); // Fim de jogo se a IA atingir WINNING_SCORE
         } else {
-            resetBall();
-            ballMoving = false; 
-            setTimeout(startBallMovement, 1000); 
+            resetRound();
         }
-      } else if (ballX > canvas.width) { 
+      } else if (ballX > canvas.width) { // Jogador pontua
         playerScore++;
-        if (playerScore >= WINNING_SCORE) {
-            endGame('player');
-        } else {
-            resetBall();
-            ballMoving = false; 
-            setTimeout(startBallMovement, 1000); 
+        servingPlayer = 'player'; // Jogador serve na próxima rodada
+
+        // A condição para AVANÇAR DE FASE (que é a cada 5 pontos E NÃO SER A ÚLTIMA FASE)
+        if (playerScore % 5 === 0 && playerScore > 0 && currentLevel < MAX_LEVEL) {
+            newPhaseScreen.style.display = 'flex'; // Mostra a tela de nova fase
+            gameRunning = false; // Pausa o jogo
+            ballMoving = false; // Para a bolinha
+            unlockedLevels = Math.max(unlockedLevels, currentLevel + 1); // Desbloqueia o próximo nível
+            updateLevelButtons(); // Atualiza os botões de nível
+            // O jogo aguardará o clique em "Continuar"
+        }
+        // Condição para FIM DE JOGO: jogador pontuou, é a última fase (MAX_LEVEL), e ele atingiu a pontuação para a última transição
+        else if (playerScore % 5 === 0 && playerScore > 0 && currentLevel === MAX_LEVEL) {
+             endGame('player_completed_all_levels'); // Sinaliza que o jogador completou todas as fases
+        }
+        // Se nenhuma das condições acima for atendida, apenas reinicia a rodada
+        else {
+            resetRound();
         }
       }
     }
 
+    function resetRound() {
+        resetBall();
+        ballMoving = false;
+        setTimeout(startBallMovement, 1000); // 1 segundo de atraso antes da bola se mover
+    }
+
     function render() {
       drawRect(0, 0, canvas.width, canvas.height, 'black');
-      drawStars(); 
+      drawStars();
 
-      drawRect(0, playerY, paddleWidth, paddleHeight, 'white');
-      drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, 'white');
-      drawCircle(ballX, ballY, ballSize, 'white');
+      drawRect(0, playerY, paddleWidth, paddleHeight, 'lime');
+      drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, 'yellow');
+      drawCircle(ballX, ballY, ballSize, 'blue');
+
       drawText(`Jogador: ${playerScore}`, 20, 20);
       drawText(`Computador: ${aiScore}`, canvas.width - 150, 20);
+      drawText(`Nível: ${currentLevel}`, canvas.width / 2 - 40, 20);
     }
 
     function gameLoop() {
       update();
       render();
-      if (gameRunning) { 
+      if (gameRunning) {
         requestAnimationFrame(gameLoop);
       }
     }
 
-      function startGame() {
-      menu.style.display = 'none'; 
+    // --- Gerenciamento de Telas e Níveis ---
+
+    function showMenu() {
+        menu.style.display = 'flex';
+        levelSelectScreen.style.display = 'none';
+        gameContainer.style.display = 'none';
+        newPhaseScreen.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+    }
+
+    function showLevelSelect() {
+        menu.style.display = 'none';
+        levelSelectScreen.style.display = 'flex';
+        gameContainer.style.display = 'none';
+        newPhaseScreen.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+        updateLevelButtons();
+    }
+
+    function startGame(level) {
+      currentLevel = level || 1;
+
+      playerScore = 0;
+      aiScore = 0;
+      gameRunning = true;
+      ballMoving = false;
+      servingPlayer = 'player'; // Garante que o jogador começa a primeira rodada
+
+      menu.style.display = 'none';
+      levelSelectScreen.style.display = 'none';
+      newPhaseScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
       gameContainer.style.display = 'block';
 
-      playerScore = 0; 
-      aiScore = 0;
+      resetBall();
+      playerY = canvas.height / 2 - paddleHeight / 2;
+      aiY = canvas.height / 2 - paddleHeight / 2;
 
-      resetBall(); 
-      playerY = canvas.height / 2 - paddleHeight / 2; 
-      aiY = canvas.height / 2 - paddleHeight / 2; 
-
-      gameRunning = true; 
-      ballMoving = false; 
-      setTimeout(startBallMovement, 1000); 
-
-      gameLoop(); 
+      gameLoop();
+      setTimeout(startBallMovement, 1000);
     }
 
     function endGame(winner) {
-        gameRunning = false; 
-        ballMoving = false; 
-        alert(winner === 'player' ? 'Você Venceu!' : 'O Computador Venceu!');
-        
-        gameContainer.style.display = 'none';
-        menu.style.display = 'flex';
+        gameRunning = false;
+        ballMoving = false;
+        gameOverScreen.style.display = 'flex';
+        if (winner === 'player_completed_all_levels') {
+            gameOverMessage.textContent = 'Parabéns! Você Concluiu Todas as Fases!';
+        } else if (winner === 'player') {
+            gameOverMessage.textContent = 'Você Venceu a Partida!'; // Caso o jogador ganhe por pontos antes da última fase
+        } else { // winner === 'computer'
+            gameOverMessage.textContent = 'O Computador Venceu!';
+        }
     }
 
- 
-    startButton.addEventListener('click', startGame);
+    function updateLevelButtons() {
+        levelButtonsContainer.innerHTML = '';
+        for (let i = 1; i <= MAX_LEVEL; i++) {
+            const button = document.createElement('button');
+            button.textContent = `Nível ${i}`;
+            button.value = i;
+            if (i > unlockedLevels) {
+                button.disabled = true;
+            }
+            button.addEventListener('click', () => startGame(parseInt(button.value)));
+            levelButtonsContainer.appendChild(button);
+        }
+    }
+
+    // --- Event Listeners ---
+    playButton.addEventListener('click', () => startGame(currentLevel));
+    levelsButton.addEventListener('click', showLevelSelect);
+    backToMenuButton.addEventListener('click', showMenu);
+    continueGameButton.addEventListener('click', () => {
+        newPhaseScreen.style.display = 'none';
+        currentLevel++; // Aumenta o nível quando o jogador clica em "Continuar"
+        
+        // Verifica se, ao avançar, o jogador chegou ou passou do nível máximo
+        if (currentLevel > MAX_LEVEL) {
+            // Se sim, significa que ele concluiu a última fase.
+            // Poderíamos chamar endGame aqui diretamente, mas a lógica já está no update
+            // O ideal é que o jogo já tenha terminado no update se ele estava na última fase
+            // E o jogador fez os pontos da transição.
+            // Este caso aqui seria mais um fallback para garantir que não avançamos além de MAX_LEVEL
+            currentLevel = MAX_LEVEL; 
+            // Poderíamos adicionar uma mensagem de "Parabéns" aqui também, mas o update já cuidará disso
+            // ou talvez um showFinalGameCompletionScreen() se fosse uma tela diferente.
+            // Por enquanto, apenas garantimos que o currentLevel não exceda MAX_LEVEL
+            // e o jogo já terá chamado endGame com 'player_completed_all_levels'
+        }
+        startGame(currentLevel); // Reinicia o jogo no novo nível (ou no último nível, se já tiver completado)
+    });
+    restartGameButton.addEventListener('click', showMenu);
 
     document.addEventListener('keydown', (e) => {
-      if (!gameRunning) return; 
+      if (!gameRunning) return;
 
       if (e.key === 'ArrowUp') playerY -= paddleSpeed;
       else if (e.key === 'ArrowDown') playerY += paddleSpeed;
     });
 
+    // --- Inicialização ao Carregar a Página ---
     document.addEventListener('DOMContentLoaded', () => {
-      gameContainer.style.display = 'none'; 
-      menu.style.display = 'flex'; 
-      initStars(); 
-      render(); 
-
-    render();
+      initStars();
+      showMenu();
+      updateLevelButtons();
+      render();
+    });
   </script>
 </body>
 </html>
