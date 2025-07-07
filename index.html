@@ -2,50 +2,93 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Ping Pong</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ping Pong Clássico</title>
   <style>
+    body {
+      margin: 0;
+      overflow: hidden; /* Evita barras de rolagem */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh; /* Garante que o body ocupe a altura total da viewport */
+      background-color: #1a1a1a; /* Fundo escuro para a página */
+      font-family: 'Arial', sans-serif;
+    }
+
     canvas {
-      background: rgb(0, 0, 0);
+      background: black;
       display: block;
       margin: 0 auto;
-      border: 4px solid rgb(139, 0, 0);
+      border: 3px solid white;
+    }
+
+    #gameContainer {
+      /* Este contêiner envolverá o canvas e as telas de overlay (menu/game over) */
+      position: relative; /* Necessário para posicionar overlays com absolute */
+      display: none; /* Inicia oculto, será mostrado ao iniciar o jogo */
+      width: 600px; /* Largura padrão do canvas */
+      height: 400px; /* Altura padrão do canvas */
+      margin: 0 auto;
     }
 
     #menu {
-      display: flex;
+      display: flex; /* Exibe o menu por padrão */
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8); /* Fundo semi-transparente */
+      padding: 30px;
+      border-radius: 15px;
+      z-index: 10; /* Garante que fique acima do canvas */
+      color: white;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      width: 80%; /* Responsivo */
+      max-width: 400px;
+    }
+
+    #menu h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      color: white;
     }
 
     #menu button {
       background-color: #2b2b2b;
       color: white;
-      padding: 20px 40px;
+      padding: 15px 30px;
       border: none;
       border-radius: 10px;
-      font-size: 20px;
+      font-size: 1.2em;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: background-color 0.2s, transform 0.1s;
+      width: 80%;
+      max-width: 250px;
     }
 
     #menu button:hover {
       background-color: #777;
+      transform: scale(1.05);
+    }
+    #menu button:active {
+      transform: scale(0.98);
     }
 
-    #gameContainer {
-      display: none;
-    }
   </style>
 </head>
 <body>
-  <div id="menu">
-    <h1>Ping Pong</h1>
-    <button id="startButton">Começar Jogo</button>
-  </div>
-
   <div id="gameContainer">
     <canvas id="gameCanvas" width="600" height="400"></canvas>
+  </div>
+
+  <div id="menu">
+    <h1>Ping Pong Clássico</h1>
+    <button id="startButton">Começar Jogo</button>
   </div>
 
   <script>
@@ -53,7 +96,7 @@
     const ctx = canvas.getContext('2d');
     const startButton = document.getElementById('startButton');
     const menu = document.getElementById('menu');
-    const gameContainer = document.getElementById('gameContainer');
+    const gameContainer = document.getElementById('gameContainer'); // Obter o novo contêiner
 
     const paddleWidth = 10, paddleHeight = 100;
     let playerY = canvas.height / 2 - paddleHeight / 2;
@@ -62,32 +105,18 @@
 
     let ballX = canvas.width / 2;
     let ballY = canvas.height / 2;
-    let ballSpeedX = 5;
-    let ballSpeedY = 4;
+    let ballSpeedX = 0; // Começa com 0 para que a bola não se mova imediatamente
+    let ballSpeedY = 0; // Começa com 0 para que a bola não se mova imediatamente
     const ballSize = 10;
 
     let playerScore = 0;
     let aiScore = 0;
+    const WINNING_SCORE = 5; // Adicionado: Pontuação para vencer o jogo
 
-    function startGame() {
-      menu.style.display = 'none';
-      gameContainer.style.display = 'block';
-      gameLoop();
-    }
+    let gameRunning = false; // Controla se o jogo está ativo (e o loop deve rodar)
+    let ballMoving = false; // Controla quando a bola deve se mover
 
-    startButton.addEventListener('click', startGame);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp') {
-        playerY -= paddleSpeed;
-      } else if (e.key === 'ArrowDown') {
-        playerY += paddleSpeed;
-      }
-
-      if (playerY < 0) playerY = 0;
-      if (playerY + paddleHeight > canvas.height) playerY = canvas.height - paddleHeight;
-    });
-
+    // --- Funções de Desenho ---
     function drawRect(x, y, w, h, color) {
       ctx.fillStyle = color;
       ctx.fillRect(x, y, w, h);
@@ -101,59 +130,92 @@
       ctx.fill();
     }
 
-    function drawText(text, x, y) {
-      ctx.fillStyle = 'white';
-      ctx.font = '20px Arial';
+    function drawText(text, x, y, color = 'white', font = '20px Arial') {
+      ctx.fillStyle = color;
+      ctx.font = font;
       ctx.fillText(text, x, y);
     }
 
+    // --- Lógica do Jogo ---
+
+    // Função para resetar a bola
     function resetBall() {
       ballX = canvas.width / 2;
       ballY = canvas.height / 2;
-      ballSpeedX *= -1;
-      ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+      ballSpeedX = 0; // Garante que a bola para ao resetar
+      ballSpeedY = 0; // Garante que a bola para ao resetar
     }
 
-    function update() {
-      ballX += ballSpeedX;
-      ballY += ballSpeedY;
+    // Função para iniciar o movimento da bola após um pequeno atraso
+    function startBallMovement() {
+        ballMoving = true;
+        // Inverte a direção X da bola após cada ponto, mas com uma nova velocidade Y aleatória
+        // Multiplicar por -1 a ballSpeedX inicial garante que ela sempre comece na direção oposta a quem marcou
+        ballSpeedX = 5 * (Math.random() > 0.5 ? 1 : -1); // Reinicia com 5, ou -5
+        ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+    }
 
+
+    function update() {
+      if (!gameRunning) return; // Só atualiza se o jogo estiver rodando
+
+      if (ballMoving) { // A bola só se move se ballMoving for true
+        ballX += ballSpeedX;
+        ballY += ballSpeedY;
+      }
+
+      // colisão com topo e base
       if (ballY <= 0 || ballY + ballSize >= canvas.height) {
         ballSpeedY *= -1;
       }
 
+      // IA simples
       const aiCenter = aiY + paddleHeight / 2;
       if (aiCenter < ballY) aiY += 3;
       else aiY -= 3;
 
+      // Limita as raquetes para não saírem da tela
+      playerY = Math.max(0, Math.min(playerY, canvas.height - paddleHeight));
+      aiY = Math.max(0, Math.min(aiY, canvas.height - paddleHeight));
+
+      // colisão com jogador
       if (
         ballX <= paddleWidth &&
         ballY + ballSize >= playerY &&
         ballY <= playerY + paddleHeight
       ) {
-        ballSpeedX *= -1.05;
-        ballSpeedY *= 1.05;
+        ballSpeedX *= -1.05; // Inverte X e aumenta levemente a velocidade
       }
 
+      // colisão com IA
       if (
         ballX + ballSize >= canvas.width - paddleWidth &&
         ballY + ballSize >= aiY &&
         ballY <= aiY + paddleHeight
       ) {
-        ballSpeedX *= -1.05;
-        ballSpeedY *= 1.05;
+        ballSpeedX *= -1.05; // Inverte X e aumenta levemente a velocidade
       }
 
-      if (ballX < 0) {
+      // pontuação
+      if (ballX < 0) { // Bola saiu pela esquerda (ponto para a IA)
         aiScore++;
-        resetBall();
-      } else if (ballX > canvas.width) {
+        if (aiScore >= WINNING_SCORE) {
+            endGame('computer');
+        } else {
+            resetBall();
+            ballMoving = false; // Para a bola
+            setTimeout(startBallMovement, 1000); // Começa a mover após 1 segundo
+        }
+      } else if (ballX > canvas.width) { // Bola saiu pela direita (ponto para o jogador)
         playerScore++;
-        resetBall();
+        if (playerScore >= WINNING_SCORE) {
+            endGame('player');
+        } else {
+            resetBall();
+            ballMoving = false; // Para a bola
+            setTimeout(startBallMovement, 1000); // Começa a mover após 1 segundo
+        }
       }
-
-      if (playerY < 0) playerY = 0;
-      if (playerY + paddleHeight > canvas.height) playerY = canvas.height - paddleHeight;
     }
 
     function render() {
@@ -168,9 +230,63 @@
     function gameLoop() {
       update();
       render();
-      requestAnimationFrame(gameLoop);
+      if (gameRunning) { // Continua o loop apenas se o jogo estiver rodando
+        requestAnimationFrame(gameLoop);
+      }
     }
+
+    // --- Gerenciamento de Telas ---
+    function startGame() {
+      menu.style.display = 'none'; // Esconde o menu
+      gameContainer.style.display = 'block'; // Mostra o contêiner do jogo
+
+      playerScore = 0; // Zera a pontuação
+      aiScore = 0;
+
+      resetBall(); // Posiciona a bola no centro e para ela
+      playerY = canvas.height / 2 - paddleHeight / 2; // Reseta raquete do jogador
+      aiY = canvas.height / 2 - paddleHeight / 2; // Reseta raquete da IA
+
+      gameRunning = true; // Inicia o estado do jogo
+      ballMoving = false; // Garante que a bola não se mova imediatamente
+
+      // Inicia o movimento da bola após um atraso para evitar vitória/derrota imediata
+      setTimeout(startBallMovement, 1000); // 1 segundo de atraso
+
+      gameLoop(); // Inicia o loop principal do jogo
+    }
+
+    function endGame(winner) {
+        gameRunning = false; // Para o loop do jogo
+        ballMoving = false; // Para o movimento da bola
+        // Você pode adicionar uma tela de "Game Over" aqui, se quiser
+        // Por enquanto, vamos alertar e reiniciar para o menu
+        alert(winner === 'player' ? 'Você Venceu!' : 'O Computador Venceu!');
+        // Voltando ao menu após o jogo
+        gameContainer.style.display = 'none';
+        menu.style.display = 'flex';
+    }
+
+    // --- Event Listeners ---
+    startButton.addEventListener('click', startGame);
+
+    document.addEventListener('keydown', (e) => {
+      if (!gameRunning) return; // Só move a raquete se o jogo estiver ativo
+
+      if (e.key === 'ArrowUp') playerY -= paddleSpeed;
+      else if (e.key === 'ArrowDown') playerY += paddleSpeed;
+    });
+
+    // Ao carregar a página, exibe o menu e esconde o jogo
+    document.addEventListener('DOMContentLoaded', () => {
+      gameContainer.style.display = 'none'; // Oculta o jogo
+      menu.style.display = 'flex'; // Exibe o menu
+      render(); // Renderiza o canvas uma vez para garantir que está limpo
+    });
+
+    // Chame render uma vez para desenhar o estado inicial (e o canvas vazio/preto) antes do jogo começar.
+    // Isso é útil se o menu cobre o canvas, mas o canvas ainda precisa ser inicializado.
+    render();
   </script>
 </body>
-
 </html>
